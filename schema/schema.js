@@ -3,7 +3,8 @@ const fakeData = require("../fakeData/fakeData.json");
 const originData = require("../fakeData/originData.json");
 var _ = require("lodash");
 //console.log(graphql);
-
+const Car = require("../models/car");
+const Origin = require("../models/origin");
 const {
   GraphQLObjectType,
   GraphQLID,
@@ -11,6 +12,7 @@ const {
   GraphQLString,
   GraphQLSchema,
   GraphQLList,
+  GraphQLNonNull,
 } = graphql;
 
 const CarType = new GraphQLObjectType({
@@ -24,7 +26,8 @@ const CarType = new GraphQLObjectType({
 
       resolve(parent, args) {
         console.log("this is the parent", parent);
-        return _.find(originData, { id: parent.country_id });
+        //  return _.find(originData, { id: parent.country_id });
+        return Origin.findById(parent.country_id);
       },
     },
   }),
@@ -41,7 +44,9 @@ const OriginType = new GraphQLObjectType({
 
       resolve(parent, args) {
         console.log("this is the parent", parent);
-        return _.filter(fakeData, { country_id: parent.id });
+        // return _.filter(fakeData, { country_id: parent.id });
+
+        return Car.find({ country_id: parent.id });
       },
     },
   }),
@@ -55,7 +60,8 @@ const RootQuery = new GraphQLObjectType({
       args: { id: { type: GraphQLID } },
       resolve(parent, args) {
         // code to get data from db / other source
-        return _.find(fakeData, { id: args.id });
+        //return _.find(fakeData, { id: args.id });
+        return Car.findById(args.id);
       },
     },
     origin: {
@@ -64,7 +70,8 @@ const RootQuery = new GraphQLObjectType({
 
       resolve(parent, args) {
         // code to get data from db / other source
-        return _.find(originData, { id: args.id });
+        // return _.find(originData, { id: args.id });
+        return Origin.findById(args.id);
       },
     },
 
@@ -72,15 +79,58 @@ const RootQuery = new GraphQLObjectType({
       type: new GraphQLList(CarType),
 
       resolve(parent, args) {
-        return fakeData;
+        //return fakeData;
+        return Car.find({});
       },
     },
     countries: {
       type: new GraphQLList(OriginType),
       resolve(parent, args) {
-        return originData;
+        //return originData;
+
+        return Origin.find({});
       },
     },
   },
 });
-module.exports = new GraphQLSchema({ query: RootQuery });
+
+const Mutation = new GraphQLObjectType({
+  name: "Mutation",
+  fields: {
+    addOrigin: {
+      type: OriginType,
+      args: {
+        country: { type: new GraphQLNonNull(GraphQLString) },
+        year: { type: new GraphQLNonNull(GraphQLString) },
+      },
+      resolve(parent, args) {
+        let origin = new Origin({
+          country: args.country,
+          year: args.year,
+        });
+
+        return origin.save();
+      },
+    },
+
+    addCar: {
+      type: CarType,
+      args: {
+        name: { type: new GraphQLNonNull(GraphQLString) },
+        model: { type: new GraphQLNonNull(GraphQLString) },
+        country_id: { type: new GraphQLNonNull(GraphQLID) },
+      },
+      resolve(parent, args) {
+        let car = new Car({
+          name: args.name,
+          model: args.model,
+          country_id: args.country_id,
+        });
+
+        return car.save();
+      },
+    },
+  },
+});
+
+module.exports = new GraphQLSchema({ query: RootQuery, mutation: Mutation });
